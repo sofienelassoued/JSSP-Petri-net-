@@ -302,7 +302,7 @@ if __name__ == "__main__":
     steps= agent.steps_per_episode
 0
 #%%
-print (agent.env.D.T)
+print (agent.env.D)
 
 
 
