@@ -2,12 +2,11 @@
 
 import pandas as pd
 import numpy as np
-import itertools
-from itertools import product 
+
 
 #%% Petri env 
 
-path = "D:\Sciebo\Semester 4 (Project Thesis)\Git Projects\My petrinet simulator/petri2.html"
+path = "D:\Sciebo\Semester 4 (Project Thesis)\Git Projects\My petrinet simulator/petri1.html"
 
 class Petri_env:
     
@@ -32,7 +31,7 @@ class Petri_env:
         self.summary=[]
         
         
-        self.goal=39
+        self.goal=20
         self.terminal=False
         
         
@@ -96,25 +95,10 @@ class Petri_env:
                                  
             self.Transition_obj.append(Transition(name,time,In_arcs, Out_arcs))
                
-    def possible_firing(self) :
-        
-        
-        situation=[True]*(self.NTRANSITIONS)  
-        
-        for i in range (self.NTRANSITIONS):     
-            transition_array =np.zeros(self.NTRANSITIONS)
-            transition_array[i]=1            
-            next_step=transition_array.dot(self.Combined_incidence.T.values)+self.state
-            for j in range (len(next_step)):
-                if next_step[j]<0:
-                    situation[i]=False
-                    
-            summary = pd.DataFrame(situation,index=self.Transition_names,columns=["Firing enabled"])
-
-            
-        return summary
+  
     
     def fire_transition (self,Transition):
+        
         
         current_state=np.array(self.state)  
         
@@ -122,30 +106,41 @@ class Petri_env:
         firing_array =pd.DataFrame(np.zeros(self.NTRANSITIONS),index=self.Transition_names).T
         firing_array[Transition]=1
         
-        Next_state=(firing_array.values.dot(self.Combined_incidence.T.values)+ current_state)[0]
+        Next_state_values=(firing_array.values.dot(self.Combined_incidence.T.values)+ current_state)[0]
+        Next_state=pd.DataFrame(Next_state_values,index=self.Places_names,columns=["Current"],dtype="int64")
             
-        if all([Next_state[i] >= 0 for i in range(self.NPLACES)]):  
-            
-            for i in range(self.NPLACES) :       
-                self.Places_obj[i].token=Next_state[i] 
-               
-            #print ("firing successful ")  
-            print(f" firing successful! Current State {current_state} , Action {Transition} , Next State {Next_state}")
-            return (Next_state,True)    
+        if all([Next_state.loc[i].values >= 0 for i in Next_state.index]):  
+                    
+
+            #print(f" firing successful! Current State {current_state} , Action {Transition} , Next State {Next_state.values}")
+            return (Next_state["Current"],True)    
         else : 
-            #print ("firing Halted ")
-            print(f"firing Halted! Current State {current_state} , Action {Transition} , Next State {Next_state}")
-            return (current_state,False)
+
+           # print(f"firing Halted! Current State {current_state} , Action {Transition} , Next State {Next_state.values}")
+            return (current_state,False)   
         
         
+    def possible_firing(self) :
+        
+        situation=[]   
+        
+        for i in self.Transition_names:     
+            situation.append(self.fire_transition(i)[1])  
+            
+        summary = pd.DataFrame(situation,index=self.Transition_names,columns=["Firing enabled"])
+        
+        return(summary )
+
+            
+        return summary
+
 
     def Reward(self,fire_transition):
         
         reward=0
-        
         Next_state,delivery= fire_transition
    
-        if self.state[5]>=self.goal:  # Goal achieved  
+        if (int(self.state["OB"])>self.goal):  # Goal achieved  
         
             reward=+100
             print("Goal achieved !! ")  
@@ -182,9 +177,15 @@ class DynaQ :
         self.Qvalues={}
         self.state_space ={}
         self.state_actions=[]
-        self.states_history=[]
         self.state =self.env.state
         self.action_space=self.env.Transition_names
+        
+        self.states_history=[]
+        self.actions_history=[]
+        self.state_actions_history=[]
+        
+        
+    
       
               
     def chooseAction(self):
@@ -192,25 +193,27 @@ class DynaQ :
         action = ""
         enabled_actions=[]
         
-        transition_summary=self.env.possible_firing()        
+        transition_summary=self.env.possible_firing()["Firing enabled"]        
         for i in  transition_summary.index:
-            if transition_summary.loc[i].values==True:       
-                enabled_actions.append(i) 
+            if transition_summary.loc[i]==True :       
+                enabled_actions.append(i)
                 
-        
-        enabled_actions=self.action_space # Comment the line to force 
                 
+        if len (enabled_actions)==0:
+            print("No action possible")
+            self.env.terminal=True
+
         
-        if np.random.uniform(0, 1) <= self.exploration:
+        elif np.random.uniform(0, 1) <= self.exploration:
             action = np.random.choice(enabled_actions)
             print (f"Action choosed with epsilon Greedy {action}")
-            
+          
         else:
             
             try : 
            
                 # greedy action
-                current_position = tuple(self.state)
+                current_position = tuple(self.state.values)
                 # if all actions have same value, then select randomly
                 if len(set(self.Qvalues[current_position].values())) == 1:
                     action = np.random.choice(enabled_actions)
@@ -232,6 +235,9 @@ class DynaQ :
                   for a in self.action_space:
                       self.Qvalues[current_position][a] = 0   
                   action = np.random.choice(enabled_actions)
+                  
+                  
+        self.actions_history.append(action)
         
         return(action)
     
@@ -254,39 +260,42 @@ class DynaQ :
             while not self.env.terminal:
                 
                 action = self.chooseAction()
-                self.state_actions.append((self.env.state, action))
+                self.state_actions_history.append((tuple(self.env.state.values), action))
                             
                 Next_state,delivery =self.env.fire_transition(action)
-                reward=self.env.Reward(self.env.fire_transition(action)) 
+                reward=self.env.Reward(self.env.fire_transition(action))
+                      
+                current_position=tuple (self.state.values)
+                next_position =tuple(Next_state.values)
                 
-                try : 
-                    
-                    print (Next_state,self.state)
-                    self.Qvalues[tuple(self.state)][action] += self.learning_rate*(reward + np.max(list(self.Qvalues[tuple (Next_state)].values()))-self.Qvalues[tuple(self.state)][action])
+                try :                     
+                    self.Qvalues[current_position][action] += self.learning_rate*(reward + np.max(list(self.Qvalues[next_position].values()))-self.Qvalues[current_position][action])              
                 
-                except KeyError :
+                except KeyError :  
                     
-                    self.Qvalues[tuple(self.state)]= {}                      
+                    self.Qvalues[current_position]= {}                      
                     for a in self.action_space:
-                        self.Qvalues[tuple(self.state)][a] = 0                       
+                        self.Qvalues[current_position][a] = 0   
+                        
 
-                self.env.state =self.state =Next_state              
-                self.states_history.append(self.state.tolist())
+                self.env.state =self.state =Next_state      
+                self.states_history.append(self.state.values[0])
                 
              
-                transition_summary=self.env.possible_firing().values
-                if all([i==False for i in transition_summary]) :
+                transition_summary=self.env.possible_firing()["Firing enabled"] 
+                if all([transition_summary[i]==False for i in transition_summary.index]) :
                     
                     print("Terminal or dead lock")
                     self.env.terminal=True
 
+        
               
 
 agent=DynaQ(petri)
 
 #%% Test 
 
-#print(agent.state)
+
 
 #print( agent.env.NPLACES)
 #print( agent.action_space)
@@ -297,14 +306,19 @@ agent.Train()
 #agent.chooseAction()
 
 #%%
-
-
-
-#print (agent.Qvalues)   
+print (agent.Qvalues) 
+#print ((agent.Qvalues.keys()))  
 #print (len(agent.Qvalues.keys()))
 #print(agent.states_history)
+#print(agent.actions_history)
+#print(len(agent.actions_history))
+
+print(agent.state_actions_history)
+
+#%% 
 
 
 
 
-
+    
+            

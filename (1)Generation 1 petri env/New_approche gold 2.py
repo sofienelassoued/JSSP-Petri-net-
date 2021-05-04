@@ -187,7 +187,6 @@ class DynaQ :
     def Reward(self,firing):
         
         Next_state,Delivery= firing
-     
         positive_state =all([i>= 0 for i in Next_state]) 
         
         # update the delivered based on the new state
@@ -204,8 +203,7 @@ class DynaQ :
             reward=1
             
         else : reward=-1
-        
-                
+    
         return reward
             
   
