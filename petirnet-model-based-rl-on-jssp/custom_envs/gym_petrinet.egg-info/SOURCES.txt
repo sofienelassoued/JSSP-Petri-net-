@@ -1,0 +1,6 @@
+setup.py
+gym_petrinet.egg-info/PKG-INFO
+gym_petrinet.egg-info/SOURCES.txt
+gym_petrinet.egg-info/dependency_links.txt
+gym_petrinet.egg-info/requires.txt
+gym_petrinet.egg-info/top_level.txt
