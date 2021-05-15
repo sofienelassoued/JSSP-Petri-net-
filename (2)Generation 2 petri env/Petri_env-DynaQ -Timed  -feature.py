@@ -353,7 +353,6 @@ class DynaQ :
             
             for j in range (p.token):    # update the feature in places objects     
                 p.features[j]=self.env.simulation_clock-p.token_enabled_time
-                    
 
                                         
         for t in self.env.Transition_obj: #Synchronising dic and Obj Transition      
@@ -367,11 +366,7 @@ class DynaQ :
             if (p.token_enabled_time-p.process_time) <=0:  # not in process
                 k.enabled=False
                 
-                
-        
-
    
-        
         
         
     def Train(self):   

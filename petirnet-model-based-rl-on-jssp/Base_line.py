@@ -4,6 +4,34 @@ import gym_petrinet
 
 env = gym.make("petri-v0")
 
-env.load_model()
+done=False
+obs=env.reset()
+
+while done==False:
+
+
+    action=env.action_space.sample()
+    obs,reward,done,info=env.step(action)
+    print(tuple (obs),reward,done)
+
+
+
+#%% 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
