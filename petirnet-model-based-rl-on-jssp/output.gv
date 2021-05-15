@@ -4,10 +4,28 @@ digraph output {
 	P4 [color=black]
 	S1 [color=black]
 	S2 [color=black]
+	IB [color=black]
+	OB [color=black]
+	P4 [color=black]
+	S1 [color=black]
+	S2 [color=black]
 	T0 [shape=box]
 	T1 [shape=box]
 	T2 [shape=box]
 	T3 [shape=box]
+	IB -> T0
+	IB -> T1
+	T2 -> OB [color=black]
+	T3 -> OB [color=black]
+	T1 -> P4 [color=red]
+	P4 -> T2
+	T1 -> S1 [color=red]
+	S1 -> T2
+	S1 -> T3
+	T0 -> S2 [color=black]
+	T1 -> S2 [color=red]
+	S2 -> T2
+	S2 -> T3
 	IB -> T0
 	IB -> T1
 	T2 -> OB [color=black]
