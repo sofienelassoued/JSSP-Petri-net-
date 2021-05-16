@@ -39,7 +39,7 @@ class PetriEnv(gym.Env):
 
       self.viewer = None
       self.Terminal=False
-      self.simulation_clock=0
+      self.simulation_clock=100
       
       self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri1.html"
       self.Forwards_incidence = pd.read_html(self.path,header=0,index_col=0)[1]
@@ -48,7 +48,7 @@ class PetriEnv(gym.Env):
       self.Inhibition_matrix = pd.read_html(self.path,header=0,index_col=0)[7]
       self.initial_marking =pd.read_html(self.path,header=0,index_col=0)[9].loc["Current"]
       
-      self.process_time = {"P16":3,"P12":1,"P14":2,"P6":3,"P2":1,"P4":5}
+      self.process_timing = {"P16":3,"P12":1,"P14":2,"P6":3,"P2":1,"P4":3}
       #elf.process_time = {"P16":0,"P12":0,"P14":0,"P6":0,"P2":0,"P4":0}
              
       self.Places_names= self.Forwards_incidence.index.tolist()
@@ -61,30 +61,32 @@ class PetriEnv(gym.Env):
       self.Transition_obj=[]
       self.Transition_dict={}
         
-      self.goal=5
+      self.goal=10
+      self.feature_dimesion=2*max (self.initial_marking)
       self.marking =self.initial_marking
       self.action_space = spaces.Discrete(self.NTRANSITIONS)
       self.observation_space = spaces.Box(np.array([0]*self.NPLACES), np.array([self.goal]*self.NPLACES),dtype=np.float32)
    
 
-  def load_model(self,dimesion=20): # number of channels embeddings
+      #------------------Load and reconstruct the Petrinet from HTML file 
  
       class Place:
           
-          def __init__(self,name,token,In_arcs,Out_arcs,time,features,enabled=False):
+          def __init__(self,name,token,In_arcs,Out_arcs,time,features,waiting_time):
             
               self.pname =name
               self.token=token  
               self.In_arcs=In_arcs
               self.Out_arcs=Out_arcs 
                
-              self.enabled=enabled
-              self.token_enabled_time=0
-              self.process_time=time
+              self.waiting_time=waiting_time
+              self.process_time=0
               self.features=features
+ 
+                  
 
           def __str__(self):
-              return(f"Place name {self.pname}  Tokens: {self.token} Process Time: {self.process_time} Input:{self.In_arcs}  Output{self.Out_arcs } , currently enabled:{self.enabled}, enabled time :{self.token_enabled_time}" )
+              return(f"Place name {self.pname}  Tokens: {self.token} Input:{self.In_arcs}  Output{self.Out_arcs } , process time :{self.process_time} , time until activation {self.waiting_time}" )
                    
       class Transition:
           def __init__(self,name,time,In_arcs,Out_arcs):
@@ -101,14 +103,13 @@ class PetriEnv(gym.Env):
           
 
           # outer loop for every place        
-        
           In_arcs=[]
           Out_arcs=[]      
           name=i
           time=0
           token=self.marking[i]
-          enabled=False
-          feature=[-1]*dimesion
+          feature=[-1]*self.feature_dimesion
+          waiting_time=0
 
           for j in self.Forwards_incidence.columns.tolist() :   
               if self.Forwards_incidence.loc[i,j]==1:
@@ -117,15 +118,13 @@ class PetriEnv(gym.Env):
           for k in self.Backwards_incidence.columns.tolist() :   
               if self.Backwards_incidence.loc[i,k]==1:
                   Out_arcs.append(k)   
-                    
-          if i in list(self.process_time.keys()):
-              time=self.process_time[i]
-                
-      self.Places_obj.append(Place(name,token,In_arcs, Out_arcs,time,feature,enabled))
-      self.Places_dict.update({name: [token,In_arcs, Out_arcs,time,feature,enabled]})
-  
-
-                   
+        
+          if i in list(self.process_timing.keys()):
+             waiting_time=self.process_timing[i]
+        
+          self.Places_obj.append(Place(name,token,In_arcs, Out_arcs,time,feature,waiting_time))
+          self.Places_dict.update({name: [token,In_arcs, Out_arcs,time,feature,waiting_time]})
+              
       for i in self.Transition_names:  
           
           # outer loop for every transition        
@@ -146,7 +145,7 @@ class PetriEnv(gym.Env):
           self.Transition_obj.append(Transition(name,time,In_arcs, Out_arcs))
           self.Transition_dict.update({name: [time,In_arcs, Out_arcs]})
             
-      #print ("Model Loaded from {}".format(self.path))
+      print ("Model Loaded from {}".format(self.path))
                     
   def possible_firing(self) :
       
@@ -171,6 +170,8 @@ class PetriEnv(gym.Env):
       possible=False
       in_process=False
       in_process_place=""
+      feature_array=[]
+      
     
         
       Transition=self.Transition_names[action]
@@ -187,45 +188,51 @@ class PetriEnv(gym.Env):
       
       for i in (self.Transition_dict[Transition][1]):  # test is an Upstream place still in process
           for p in self.Places_obj:      
-              if p.pname==i and (p.token_enabled_time-p.process_time)<0 :  
-                 in_process=True 
+              if p.pname==i and p.waiting_time>0:  
+                 in_process=True
                  in_process_place=p.pname
-     
- 
+
+      #generate the feature matrix
+      for i in self.Places_obj:
+          feature_array.append(i.features)       
+      feature_matrix =np.matrix(feature_array)
+      FM = pd.DataFrame(data=feature_matrix, index=self.Places_names,columns=None)
+      
+      
+
       if  not possible  :
 
           print("firing Halted! ")
-          return (self.marking,False) 
+          return (self.marking,FM,False) 
                   
       elif in_process:  
   
           print(f"Upstream {in_process_place} Still in process , firing halted ")
-          return (self.marking,False)   
+          return (self.marking,FM,False)   
         
         #-------------if firing successful---------------
          
       else :
 
          for i in (self.Transition_dict[Transition][2]):   
-             #Loop on downstream places
              for k in self.Places_obj:          
-                 if k.pname==i:
-                     k.token+=1        #Update the token number
-                     k.enabled=True    # activate enabled status of place 
-            
-                       
+                 if k.pname==i:   
+                     #Loop on downstream places
+                     if k.pname in list(self.process_timing.keys()):
+                         k.process_time=self.process_timing[k.pname]
+                         
+
                         
          for i in (self.Transition_dict[Transition][1]): 
              #Loop on upstream places and reset Clock
              for k in self.Places_obj:
-                 if k.pname==i:
-                     
-                     k.token-=1              #update token number
-                     k.enabled=False         #decativate enabled status 
-                     k.token_enabled_time=0  #reset plave internal clock
-  
+                 if k.pname==i:           
+                     pass              #change upstream properties
+         
          print(" firing successful! ")
-         return (Next_marking["Current"],True)
+         return (Next_marking["Current"],FM,True)
+     
+        
      
          
   def Reward(self,Next_state,delivery): 
@@ -249,11 +256,13 @@ class PetriEnv(gym.Env):
           reward=-100
           #print("in process firing halted" )
             
-      else :# firing sccessful                   
-          pass# reward=-time*10p
+      else :
+          # firing sccessful                   
+          reward=-self.simulation_clock*10
             #print("in process firing successful" )
       
       return reward  
+  
         
   def graph_generater(self):
       
@@ -284,35 +293,32 @@ class PetriEnv(gym.Env):
 
   def step(self, action):
       
-  
       reward=0
       done=False
       info = {}
       observation=[]
-      Max_steps=1000 # maximum steps in episode before terminating the eipsode
+      Max_steps=500 # maximum steps in episode before terminating the eipsode
       self.simulation_clock+=1
       
-      print (f"*** Simulation Clock {self.simulation_clock}  **** ")
+      print (f"****** Simulation Clock {self.simulation_clock}  ****** ")
 
       for p in self.Places_obj: 
+          
+          #Synchronising dic and Obj Places and marking
+          p.token=self.marking[p.pname]
+          self.Places_dict[p.pname]= [p.token,p.In_arcs, p.Out_arcs,p.process_time,p.features]
 
-          self.Places_dict[p.pname]= [p.token,p.In_arcs, p.Out_arcs,p.process_time,p.features] #Synchronising dic and Obj Places
 
-          if p.enabled==True:     
-              p.token_enabled_time+=1 #update internal clock 
-                                     
+          if p.process_time>0:     
+              p.waiting_time-=1 #update internal clock 
+                           
           for j in range (p.token):    # update the feature vector in places objects     
-              p.features[j]=self.simulation_clock-p.token_enabled_time
-      
-          if (p.token_enabled_time-p.process_time) >0:  # not in process# initialise enabled status of place exept in propcess
-              p.enabled=False 
-          else:p.enabled=True
-              
-      
+              p.features[j]=p.waiting_time
+ 
       for t in self.Transition_obj: #Synchronising dic and Obj Transition      
           self.Transition_dict[t.tname]= [t.time,t.In_arcs,t.Out_arcs]         
    
-                      
+      #test termination               
       transition_summary=self.possible_firing()["Firing enabled"] 
       if all([transition_summary[i]==False for i in transition_summary.index]) : 
           print("no fireable transition available episode Terminated ")
@@ -322,14 +328,16 @@ class PetriEnv(gym.Env):
           print("No response episode Terminated")
           self.terminal=True 
           
-                      
-      observation,delivery=self.fire_transition (action)
-      reward=self.Reward(observation,delivery)
+             
+      Nxmarking,Timefeatures,delivery=self.fire_transition (action)
+      
+      observation=np.array(tuple(Nxmarking)).astype(np.int64)
+      reward=self.Reward(Nxmarking,delivery)
       info.update({"Action": self.Transition_names[action]})
       done=self.terminal
       
       
-      self.marking=observation
+      self.marking=Nxmarking
       
       return observation, reward, done, info
       
@@ -337,7 +345,7 @@ class PetriEnv(gym.Env):
       
   def reset(self):
 
-      self.load_model()
+
       self.terminal=False  
       self.marking=self.initial_marking
       self.episode_actions_history=[]
@@ -345,7 +353,7 @@ class PetriEnv(gym.Env):
       self.episode_reward=0
       self.simulation_clock=0
       
-      return self.initial_marking
+      return  np.array(tuple(self.initial_marking)).astype(np.int64)
       
       
         
@@ -358,5 +366,4 @@ class PetriEnv(gym.Env):
         if self.viewer is not None:
             self.viewer.close()
             self.viewer = None
-      
 
