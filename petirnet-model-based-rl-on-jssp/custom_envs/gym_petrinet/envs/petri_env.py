@@ -1,3 +1,4 @@
+
 #%% Libraries importation
 import gym
 from gym import error, spaces, utils
@@ -7,14 +8,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from graphviz import Digraph
-from PIL import Image
 
-import glob
 import pygame 
-import PIL 
 import os
 from graphviz import Digraph
 from graphviz import render
+from random import sample
 
 
 #%% Main environement 
@@ -47,9 +46,10 @@ class PetriEnv(gym.Env):
 
       self.viewer = True
       self.Terminal=False
-      self.simulation_clock=100
+      self.simulation_clock=0
+      self.images=[]
       
-      self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri2.html"
+      self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri1.html"
       self.Forwards_incidence = pd.read_html(self.path,header=0,index_col=0)[1]
       self.Backwards_incidence= pd.read_html(self.path,header=0,index_col=0)[3]
       self.Combined_incidence = pd.read_html(self.path,header=0,index_col=0)[5]
@@ -153,7 +153,56 @@ class PetriEnv(gym.Env):
           self.Transition_obj.append(Transition(name,time,In_arcs, Out_arcs))
           self.Transition_dict.update({name: [time,In_arcs, Out_arcs]})
             
-      print ("Model Loaded from {}".format(self.path))
+      #print ("Model Loaded from {}".format(self.path))
+      
+      
+  def graph_generater(self,action,box,arrow,halted):
+                     
+          g = Digraph('output', format='png' ) 
+          
+          for n in self.Places_obj:
+              
+              place=str(str(n.pname)+" ("+str(n.token)+")")
+              
+              g.node(place, color='black')      
+          for n in self.Transition_names:    
+              
+              if n==action and  box==True :
+                  g.node(str(n),shape="box",color='red')
+              else:g.node(str(n),shape="box",color='black')
+       
+          for i in self.Places_obj:
+              
+              place=str(str(i.pname)+" ("+str(i.token)+")")
+            
+              for j in i.In_arcs:   
+                  
+                  if j==action and arrow==True and halted==False:
+                      g.edge(j,place,color='red',label="Halted") 
+                      
+                  elif j==action and arrow==True : 
+                      g.edge(j,place,color='red')  
+                      
+                  else :
+                      g.edge(j,place,color='black')
+                             
+              for k in i.Out_arcs :    
+                  g.edge(place,k)      
+          return g   
+      
+        
+  def Create_Snapshot(self,action,delivery):
+      
+
+      g=self.graph_generater(action,True,False,delivery) 
+
+      g.render(str(self.simulation_clock),cleanup=True) 
+      im=pygame.image.load(str(self.simulation_clock)+".png") 
+      #im=pygame.transform.scale(im, (400, 600))
+      self.images.append(im)
+      os.remove(str(self.simulation_clock)+".png")
+ 
+
                     
   def possible_firing(self) :
       
@@ -252,9 +301,9 @@ class PetriEnv(gym.Env):
           # Goal achieved  
           reward=+100
           print("Goal achieved !! ")  
-          self.terminal=True
+          self.Terminal=True
           
-      elif self.terminal==True :
+      elif self.Terminal==True :
           # dead lock
           reward=-1000
           print ("Dead lock")
@@ -305,11 +354,11 @@ class PetriEnv(gym.Env):
       transition_summary=self.possible_firing()["Firing enabled"] 
       if all([transition_summary[i]==False for i in transition_summary.index]) : 
           print("no fireable transition available episode Terminated ")
-          self.terminal=True  
+          self.Terminal=True  
           
       elif self.simulation_clock> Max_steps:
           print("No response episode Terminated")
-          self.terminal=True 
+          self.Terminal=True 
           
              
       Nxmarking,Timefeatures,delivery=self.fire_transition (action)
@@ -317,10 +366,11 @@ class PetriEnv(gym.Env):
       observation=np.array(tuple(Nxmarking)).astype(np.int64)
       reward=self.Reward(Nxmarking,delivery)
       info.update({"Action": self.Transition_names[action]})
-      done=self.terminal
+      done=self.Terminal
       
       
-      self.marking=Nxmarking
+      self.marking=Nxmarking   
+      self.Create_Snapshot(self.Transition_names[action],delivery)
       
       return observation, reward, done, info
       
@@ -329,7 +379,7 @@ class PetriEnv(gym.Env):
   def reset(self):
 
 
-      self.terminal=False  
+      self.Terminal=False  
       self.marking=self.initial_marking
       self.episode_actions_history=[]
       self.episode_timing=0
@@ -342,97 +392,38 @@ class PetriEnv(gym.Env):
         
   def render(self):
       
-    steps=["T1","T2","T3"]
+      pygame.init()
+      clock = pygame.time.Clock() 
+      blue = (0, 0, 128)
       
-    clock = pygame.time.Clock()
-
-    def graph_generater(action,box,arrow):
+      try:
+          display_width = self.images[0].get_width()
+          display_height = self.images[0].get_height()
           
-          g = Digraph('output', format='png') 
-          for n in self.Places_obj:
-              g.node(str(n.pname), color='black')  
-              
-          for n in self.Transition_names:
-              
-              if n==action and  box==True :
-                  g.node(str(n),shape="box",color='red')
-              else:g.node(str(n),shape="box",color='black')
-
-            
-          for i in self.Places_obj:
-            
-              for j in i.In_arcs:   
-                  
-                  if j==action and arrow==True:
-                      g.edge(j,i.pname,color='red')       
-                  else :
-                      g.edge(j,i.pname,color='black')
-
-              for k in i.Out_arcs :    
-                  g.edge(i.pname,k)
-                  
-          return g
-
-    def create_animated_images (steps):
-
-        for i in range(0,len(steps),1) :            
-            g=graph_generater(steps[i],True,False) 
-            name=str(str(i)+"a")
-            g.render(name,cleanup=True) 
-            g=graph_generater(steps[i],False,True) 
-            name=str(str(i)+"b")
-            g.render(name,cleanup=True) 
-        
-       
-    def load_images():
-        
-        images_list = []
-        create_animated_images (steps)
-    
-    
-        for filename in glob.glob('D:\Sciebo\Semester 4 (Project Thesis)\Programming\petirnet-model-based-rl-on-jssp/*.png'): #assuming gif
-            im=pygame .image.load(filename)
-            images_list.append(im)
-            os.remove(filename)
-            
-        try:
-             
-            display_height=pygame.Surface.get_height(images_list[0])
-            display_width=pygame.Surface.get_width (images_list[0])
-
-        except:
-            display_height=100
-            display_width=100
-
-        return (display_height,display_width,images_list)
-    
+      except:
+          display_width=300
+          display_height=500
           
-    display_height,display_width,images_list=load_images() 
-    Display = pygame.display.set_mode((display_width,display_height))
-    pygame.display.set_caption('Petrinet')
 
-    def redraw(i):
-    
-        Display.blit(images_list[i], (0,0))
-        pygame.display.update()
-    
-    while self.viewer:
-        
-        clock.tick(1)
-        create_animated_images (steps) 
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.viewer = False
-    
-        for i in range(len(images_list)):
-            pygame.time.wait(500)
-            redraw(i)
-    pygame.quit()
+      pygame.display.init()        
+      Display = pygame.display.set_mode((display_width,display_height))
+      pygame.display.set_caption('Petrinet')
+      
+      font = pygame.font.Font('freesansbold.ttf', 20)
+      
+      
+      clock.tick(1)      
+     
+      for i in range(len(self.images)):
+          pygame.time.wait(500)
+          step_text = font.render(str("Step : "+str (i)), True, blue)          
+          Display.blit(self.images[i], (0,0))
+          Display.blit(step_text, (0,0))
+          pygame.display.update()
+            
+      pygame.display.quit()
       
 
-
-      
   def close(self):
-         self.viewer =True
+         pygame.display.quit()
 
