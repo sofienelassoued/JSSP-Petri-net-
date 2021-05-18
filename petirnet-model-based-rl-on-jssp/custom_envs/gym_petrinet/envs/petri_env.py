@@ -9,6 +9,14 @@ import torch
 from graphviz import Digraph
 from PIL import Image
 
+import glob
+import pygame 
+import PIL 
+import os
+from graphviz import Digraph
+from graphviz import render
+
+
 #%% Main environement 
 class PetriEnv(gym.Env):
 
@@ -37,11 +45,11 @@ class PetriEnv(gym.Env):
   def __init__(self):
       super (PetriEnv, self).__init__()
 
-      self.viewer = None
+      self.viewer = True
       self.Terminal=False
       self.simulation_clock=100
       
-      self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri1.html"
+      self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri2.html"
       self.Forwards_incidence = pd.read_html(self.path,header=0,index_col=0)[1]
       self.Backwards_incidence= pd.read_html(self.path,header=0,index_col=0)[3]
       self.Combined_incidence = pd.read_html(self.path,header=0,index_col=0)[5]
@@ -264,32 +272,7 @@ class PetriEnv(gym.Env):
       return reward  
   
         
-  def graph_generater(self):
-      
-
-      self.load_model()
-      g = Digraph('output', format='png')
-      
-      for n in self.Places_obj:
-          g.node(str(n.pname), color='black')
-
-      for n in self.Transition_names:
-        g.node(str(n),shape="box")
-
-      for i in self.Places_obj:
-          for j in i.In_arcs:  
-              
-              if j=="T1" :
-                  g.edge(j,i.pname,color='red') 
-              else: 
-                  g.edge(j,i.pname,color='black')
-              
-          for k in i.Out_arcs :    
-              g.edge(i.pname,k)
-        
-      img=g.render() 
-
-      return img
+  
 
   def step(self, action):
       
@@ -357,13 +340,99 @@ class PetriEnv(gym.Env):
       
       
         
-  def render(self, mode='human'):
-        fname = self.graph_generater()
-        im = Image.open(fname)
-        im.show() 
+  def render(self):
+      
+    steps=["T1","T2","T3"]
+      
+    clock = pygame.time.Clock()
+
+    def graph_generater(action,box,arrow):
+          
+          g = Digraph('output', format='png') 
+          for n in self.Places_obj:
+              g.node(str(n.pname), color='black')  
+              
+          for n in self.Transition_names:
+              
+              if n==action and  box==True :
+                  g.node(str(n),shape="box",color='red')
+              else:g.node(str(n),shape="box",color='black')
+
+            
+          for i in self.Places_obj:
+            
+              for j in i.In_arcs:   
+                  
+                  if j==action and arrow==True:
+                      g.edge(j,i.pname,color='red')       
+                  else :
+                      g.edge(j,i.pname,color='black')
+
+              for k in i.Out_arcs :    
+                  g.edge(i.pname,k)
+                  
+          return g
+
+    def create_animated_images (steps):
+
+        for i in range(0,len(steps),1) :            
+            g=graph_generater(steps[i],True,False) 
+            name=str(str(i)+"a")
+            g.render(name,cleanup=True) 
+            g=graph_generater(steps[i],False,True) 
+            name=str(str(i)+"b")
+            g.render(name,cleanup=True) 
+        
+       
+    def load_images():
+        
+        images_list = []
+        create_animated_images (steps)
+    
+    
+        for filename in glob.glob('D:\Sciebo\Semester 4 (Project Thesis)\Programming\petirnet-model-based-rl-on-jssp/*.png'): #assuming gif
+            im=pygame .image.load(filename)
+            images_list.append(im)
+            os.remove(filename)
+            
+        try:
+             
+            display_height=pygame.Surface.get_height(images_list[0])
+            display_width=pygame.Surface.get_width (images_list[0])
+
+        except:
+            display_height=100
+            display_width=100
+
+        return (display_height,display_width,images_list)
+    
+          
+    display_height,display_width,images_list=load_images() 
+    Display = pygame.display.set_mode((display_width,display_height))
+    pygame.display.set_caption('Petrinet')
+
+    def redraw(i):
+    
+        Display.blit(images_list[i], (0,0))
+        pygame.display.update()
+    
+    while self.viewer:
+        
+        clock.tick(1)
+        create_animated_images (steps) 
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.viewer = False
+    
+        for i in range(len(images_list)):
+            pygame.time.wait(500)
+            redraw(i)
+    pygame.quit()
+      
+
+
       
   def close(self):
-        if self.viewer is not None:
-            self.viewer.close()
-            self.viewer = None
+         self.viewer =True
 
