@@ -78,7 +78,7 @@ class PetriEnv(gym.Env):
       self.observation_space = spaces.Box(np.array([0]*self.NPLACES), np.array([self.goal]*self.NPLACES),dtype=np.float32)
    
 
-      #------------------Load and reconstruct the Petrinet from HTML file 
+      #------------------Load and reconstruct the Petrinet from HTML file----------------# 
  
       class Place:
           
@@ -247,7 +247,7 @@ class PetriEnv(gym.Env):
   
         
       firing_array =pd.DataFrame(np.zeros(self.NTRANSITIONS),index=self.Transition_names)
-      firing_array.iloc[action]=1
+      firing_array.iloc[int(action)]=1
    
       Next_marking_values=(firing_array.T.values.dot(self.Combined_incidence.T.values)+ current_marking)[0].astype(np.int64)
       Next_marking=pd.DataFrame(Next_marking_values,index=self.Places_names,columns=["Current"],dtype="int64")
@@ -311,7 +311,7 @@ class PetriEnv(gym.Env):
       if  int(self.marking["OB"])>self.goal:
           
           # Goal achieved  
-          reward=+100
+          reward=+1000
           #print("Goal achieved !! ")  
           self.Terminal=True
           
@@ -344,7 +344,7 @@ class PetriEnv(gym.Env):
       Max_steps=500 # maximum steps in episode before terminating the eipsode
       self.simulation_clock+=1
       
-      print (f"****** Simulation Clock {self.simulation_clock}  ****** ")
+      #print (f"****** Simulation Clock {self.simulation_clock}  ****** ")
 
       for p in self.Places_obj: 
           
@@ -379,16 +379,14 @@ class PetriEnv(gym.Env):
       reward=self.Reward(Nxmarking,fired)
       info.update({"Action": self.Transition_names[action]})
       done=self.Terminal
-      
-      
+
       self.marking=Nxmarking  
       
       if testing==True: 
           self.Create_Snapshot(self.Transition_names[action],fired,inprocess,reward,episode)
           
       return observation, reward, done, info
-      
-      
+        
       
   def reset(self):
 
@@ -421,10 +419,8 @@ class PetriEnv(gym.Env):
       pygame.display.init()   
       pygame.display.set_caption('Petrinet')
       Display = pygame.display.set_mode((display_width,display_height))
-      
-      
+       
       clock.tick(1)
-  
       for i in range (len(self.grafic_container)):
 
           pygame.time.wait(500)
