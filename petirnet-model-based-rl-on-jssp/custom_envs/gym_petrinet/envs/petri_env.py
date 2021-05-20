@@ -48,10 +48,10 @@ class PetriEnv(gym.Env):
       self.Terminal=False
       self.simulation_clock=0
       self.grafic_container=[]
-      pygame.font.init()
+      
    
       
-      self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri1.html"
+      self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri4.html"
       self.Forwards_incidence = pd.read_html(self.path,header=0,index_col=0)[1]
       self.Backwards_incidence= pd.read_html(self.path,header=0,index_col=0)[3]
       self.Combined_incidence = pd.read_html(self.path,header=0,index_col=0)[5]
@@ -158,68 +158,60 @@ class PetriEnv(gym.Env):
       #print ("Model Loaded from {}".format(self.path))
       
       
-  def graph_generater(self,action,box,arrow,inprocess):
-                     
-          g = Digraph('output', format='png' ) 
-          
-          for n in self.Places_obj:
-              
-              place=str(str(n.pname)+" ("+str(n.token)+")")
-
-              if n.pname in inprocess:
-                  g.node(place, color='blue')
-              else: g.node(place, color='black')
-              
-              
-          for n in self.Transition_names:    
-              
-              if n==action and  box==True :
-                  g.node(str(n),shape="box",color='red')
-              else:g.node(str(n),shape="box",color='black')
-       
-          for i in self.Places_obj:
-              
-              place=str(str(i.pname)+" ("+str(i.token)+")")
-            
-              for j in i.In_arcs:   
-                  
-                  if j==action and arrow==True :
-                      g.edge(j,place,color='red' )
-                  
-                  else :
-                      g.edge(j,place,color='black')
-                             
-              for k in i.Out_arcs :    
-                  g.edge(place,k)      
-          return g   
-      
+ 
         
-  def Create_Snapshot(self,action,delivery,reward,inprocess):
-      
-      grafic=()
-      black = (0, 0, 0)
-      font = pygame.font.Font('freesansbold.ttf', 15)
+  def Create_Snapshot(self,action,fired,inprocess,reward,episode=1):
 
-      
-      if delivery==True:
+      def graph_generater(action,fired,inprocess):
+                 
+           g = Digraph('output', format='png' ) 
+           
+           for n in self.Places_obj:     
+               place=str(str(n.pname)+" ("+str(n.token)+")")
+               if n.pname in inprocess:
+                   g.node(place, color='blue')
+               else: g.node(place, color='black')
+                      
+           for n in self.Transition_names:    
+                      
+               if n==action :
+                  g.node(str(n),shape="box",color='red')
+               else:g.node(str(n),shape="box",color='black')
           
-          g=self.graph_generater(action,True,True,inprocess) 
-          g.render(str(self.simulation_clock),cleanup=True) 
-          image=pygame.image.load(str(self.simulation_clock)+".png") 
-          #im=pygame.transform.scale(im, (400, 600))
-          
-      else:
+           
+           for i in self.Places_obj:           
+               place=str(str(i.pname)+" ("+str(i.token)+")")
+                    
+               for j in i.In_arcs:                 
+                   if j==action and fired==True :
+                      g.edge(j,place,color='red' )                 
+                   else :g.edge(j,place,color='black')
+                                      
+               for k in i.Out_arcs :    
+                   g.edge(place,k)                        
+                   
+           return g   
+     
+
+      black = (0, 0, 0)
       
-          g=self.graph_generater(action,True,False,inprocess) 
-          g.render(str(self.simulation_clock),cleanup=True) 
-          image=pygame.image.load(str(self.simulation_clock)+".png") 
-          #im=pygame.transform.scale(im, (400, 600))
-          
-      text_1=font.render(str("Step : "+str (self.simulation_clock)), True, black)        
-      textt_2=font.render(str("Reward : "+str (reward)), True, black)           
-      grafic=(image,text_1,textt_2)       
-      self.grafic_container.append (grafic)
+      pygame.font.init()
+      font = pygame.font.Font('freesansbold.ttf', 15)
       
+      petri=graph_generater(action,fired,inprocess)  
+      petri.render(str(self.simulation_clock),cleanup=True)
+      
+      image=pygame.image.load(str(self.simulation_clock)+".png") 
+      Episode=font.render(str("Episode : "+str (episode)), True, black)   
+      Step=font.render(str("Step : "+str (self.simulation_clock)), True, black)        
+      Reward=font.render(str("Reward : "+str (reward)), True, black)
+      
+      display_width = image.get_width()
+      display_height =image.get_height()
+      screen_shot=pygame.Surface((display_width,display_height))  
+      screen_shot.blits(blit_sequence=((image,(0,0)),(Episode,(0,0)),(Step,(0,20)),(Reward,(0,40))))
+  
+      self.grafic_container.append (screen_shot)
       os.remove(str(self.simulation_clock)+".png")
  
                     
@@ -245,7 +237,6 @@ class PetriEnv(gym.Env):
       
       possible=False
       in_process=False
-      in_process_place=""
       feature_array=[]
       inp_rocess_Places=[]
       
@@ -280,12 +271,12 @@ class PetriEnv(gym.Env):
 
       if  not possible  :
 
-          print("firing Halted! ")
+          #print("firing Halted! ")
           return (self.marking,FM,False,inp_rocess_Places) 
                   
       elif in_process:  
   
-          print(f"Upstream {in_process_place} Still in process , firing halted ")
+          #print(f"Upstream {in_process_place} Still in process , firing halted ")
           return (self.marking,FM,False,inp_rocess_Places)   
         
         #-------------if firing successful---------------
@@ -307,7 +298,7 @@ class PetriEnv(gym.Env):
                  if k.pname==i:           
                      pass              #change upstream properties
          
-         print(" firing successful! ")
+         #print(" firing successful! ")
          return (Next_marking["Current"],FM,True,inp_rocess_Places)
      
         
@@ -321,13 +312,13 @@ class PetriEnv(gym.Env):
           
           # Goal achieved  
           reward=+100
-          print("Goal achieved !! ")  
+          #print("Goal achieved !! ")  
           self.Terminal=True
           
       elif self.Terminal==True :
           # dead lock
           reward=-1000
-          print ("Dead lock")
+          #print ("Dead lock")
 
       elif delivery == False :
           # firing halted
@@ -344,7 +335,7 @@ class PetriEnv(gym.Env):
         
   
 
-  def step(self, action):
+  def step(self, action,testing=False,episode=0):
       
       reward=0
       done=False
@@ -374,25 +365,27 @@ class PetriEnv(gym.Env):
       #test termination               
       transition_summary=self.possible_firing()["Firing enabled"] 
       if all([transition_summary[i]==False for i in transition_summary.index]) : 
-          print("no fireable transition available episode Terminated ")
+          #print("no fireable transition available episode Terminated ")
           self.Terminal=True  
           
       elif self.simulation_clock> Max_steps:
-          print("No response episode Terminated")
+          #print("No response episode Terminated")
           self.Terminal=True 
           
              
-      Nxmarking,Timefeatures,delivery,inprocess=self.fire_transition (action)
+      Nxmarking,Timefeatures,fired,inprocess=self.fire_transition (action)
       
       observation=np.array(tuple(Nxmarking)).astype(np.int64)
-      reward=self.Reward(Nxmarking,delivery)
+      reward=self.Reward(Nxmarking,fired)
       info.update({"Action": self.Transition_names[action]})
       done=self.Terminal
       
       
-      self.marking=Nxmarking   
-      self.Create_Snapshot(self.Transition_names[action],delivery,reward,inprocess)
+      self.marking=Nxmarking  
       
+      if testing==True: 
+          self.Create_Snapshot(self.Transition_names[action],fired,inprocess,reward,episode)
+          
       return observation, reward, done, info
       
       
@@ -403,6 +396,7 @@ class PetriEnv(gym.Env):
       self.Terminal=False  
       self.marking=self.initial_marking
       self.episode_actions_history=[]
+      self.grafic_container=[]
       self.episode_timing=0
       self.episode_reward=0
       self.simulation_clock=0
@@ -413,42 +407,34 @@ class PetriEnv(gym.Env):
         
   def render(self):
            
-      pygame.init()
-      clock = pygame.time.Clock() 
-    
+      
+      clock = pygame.time.Clock()   
       try:
-          display_width = self.grafic_container[0][0].get_width()
-          display_height = self.grafic_container[0][0].get_height()
+       display_width = self.grafic_container[0].get_width()
+       display_height =self.grafic_container[0].get_height()
           
       except:
           display_width=300
           display_height=500
-
+          
+      pygame.init()
       pygame.display.init()   
       pygame.display.set_caption('Petrinet')
       Display = pygame.display.set_mode((display_width,display_height))
       
       
-      i=0
       clock.tick(1)
-      
-      while True:
   
+      for i in range (len(self.grafic_container)):
+
           pygame.time.wait(500)
-          Display.blit(self.grafic_container[i][0],(0,0))
-          Display.blit(self.grafic_container[i][1],(0,0))
-          Display.blit(self.grafic_container[i][2],(0,20))
-          
-          for event in pygame.event.get() :
-              if event.type == pygame.QUIT :
-                  pygame.quit()
-                  break
-                  
+          Display.blit(self.grafic_container[i],(0,0))
           pygame.display.update()
-      
-          i+=1
-          if i >= len(self.grafic_container):
-              break        
+
+          for event in pygame.event.get() :
+             if event.type == pygame.QUIT :
+                pygame.quit()
+
       pygame.display.quit()
       
       
