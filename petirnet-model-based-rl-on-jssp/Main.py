@@ -16,7 +16,7 @@ check_env(env, warn=True)
 # Instantiate the agent
 model = DQN('MlpPolicy', env, learning_rate=1e-3, verbose=1)
 # Train the agent
-model.learn(total_timesteps=int(2))
+model.learn(total_timesteps=int(2e5))
 # Save the agent
 model.save("dqn_Petri")
 #del model  # delete trained model to demonstrate loading
@@ -29,7 +29,7 @@ model.save("dqn_Petri")
 
 # Enjoy trained agent
 obs = env.reset()
-for i in range(10):
+for i in range(300):
     action, _states = model.predict(obs)
     #print(action)
     obs, rewards, dones, info = env.step(action,testing=True)
@@ -37,11 +37,5 @@ for i in range(10):
 env.render()
     
 
-#%%N
+#%%Ntesting 
 
-feature_array=[]
-for i in env.Places_obj:
-    feature_array.append(i.features) 
-    FM=np.array(feature_array)
-      
-print(FM)

@@ -14,6 +14,7 @@ import os
 from graphviz import Digraph
 from graphviz import render
 from random import sample
+import copy
 
 
 #%% Main environement 
@@ -48,6 +49,7 @@ class PetriEnv(gym.Env):
       self.simulation_clock=0
       self.max_steps=500 # maximum steps in episode before terminating the eipsode
       self.grafic_container=[]
+      self.saved_render=[]
       
   
       self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri4.html"
@@ -212,7 +214,8 @@ class PetriEnv(gym.Env):
       screen_shot=pygame.Surface((display_width,display_height))  
       screen_shot.blits(blit_sequence=((image,(0,0)),(Episode,(0,0)),(Step,(0,20)),(Reward,(0,40))))
   
-      self.grafic_container.append (screen_shot)
+      self.grafic_container.append (screen_shot)  
+      self.saved_render.append (screen_shot)
       os.remove(str(self.simulation_clock)+".png")
  
                     
@@ -327,12 +330,12 @@ class PetriEnv(gym.Env):
 
       elif delivery == False :
           # firing halted
-          reward=-100
+          reward=-500
           #print("in process firing halted" )
             
       else :
           # firing sccessful                   
-          reward=-self.simulation_clock*10
+          reward=-self.simulation_clock
           #print("in process firing successful" )
     
       self.delivered=int(self.marking["OB"])   
@@ -352,19 +355,20 @@ class PetriEnv(gym.Env):
       observation=[]
       self.simulation_clock+=1
       
-      print (f"****** Simulation Clock {self.simulation_clock}  ****** ")
+      #print (f"****** Simulation Clock {self.simulation_clock}  ****** ")
 
       for p in self.Places_obj: 
           
           #Synchronising dic and Obj Places and marking
           p.token=self.marking[p.pname]
+          p.features[0]=p.token
           self.Places_dict[p.pname]= [p.token,p.In_arcs, p.Out_arcs,p.process_time,p.features]
 
 
           if p.process_time>0:     
               p.waiting_time-=1 #update internal clock 
                            
-          for j in range (p.token):    # update the feature vector in places objects     
+          for j in range (1,p.token+1):    # update the feature vector in places objects     
               p.features[j]=p.waiting_time
  
       for t in self.Transition_obj: #Synchronising dic and Obj Transition      
@@ -405,7 +409,7 @@ class PetriEnv(gym.Env):
       self.episode_timing=0
       self.episode_reward=0
       self.simulation_clock=0
-      self.grafic_container=[]
+      #self.grafic_container=[]
       self.episode_actions_history=[]
       self.marking=self.initial_marking
           
@@ -413,7 +417,8 @@ class PetriEnv(gym.Env):
               #np.array(tuple(self.initial_marking)).astype(np.int64)
    
         
-  def render(self):           
+  def render(self,replay=False):  
+      
       
       clock = pygame.time.Clock()   
       try:
@@ -433,7 +438,10 @@ class PetriEnv(gym.Env):
       for i in range (len(self.grafic_container)):
 
           pygame.time.wait(500)
-          Display.blit(self.grafic_container[i],(0,0))
+          
+          if replay==False:Display.blit(self.grafic_container[i],(0,0))
+          else:Display.blit(self.saved_render[i],(0,0))    
+          
           pygame.display.update()
 
           for event in pygame.event.get() :
