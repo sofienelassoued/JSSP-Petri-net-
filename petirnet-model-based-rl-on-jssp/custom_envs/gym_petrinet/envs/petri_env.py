@@ -16,7 +16,6 @@ from graphviz import render
 from random import sample
 
 
-
 #%% Main environement 
 class PetriEnv(gym.Env):
 
@@ -47,10 +46,10 @@ class PetriEnv(gym.Env):
 
       self.Terminal=False
       self.simulation_clock=0
+      self.max_steps=500 # maximum steps in episode before terminating the eipsode
       self.grafic_container=[]
       
-   
-      
+  
       self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri4.html"
       self.Forwards_incidence = pd.read_html(self.path,header=0,index_col=0)[1]
       self.Backwards_incidence= pd.read_html(self.path,header=0,index_col=0)[3]
@@ -72,16 +71,18 @@ class PetriEnv(gym.Env):
       self.Transition_dict={}
         
       self.goal=10
-      self.feature_dimesion=2*max (self.initial_marking)
+      self.delivered=0
       self.marking =self.initial_marking
-      self.action_space = spaces.Discrete(self.NTRANSITIONS)
-      self.observation_space = spaces.Box(np.array([0]*self.NPLACES), np.array([self.goal]*self.NPLACES),dtype=np.float32)
-   
+      self.feature_dimesion=2*max (self.initial_marking)
+      self.high=np.array([[self.max_steps]*self.feature_dimesion]*self.NPLACES,dtype=np.int32)
+      
+      self.action_space = spaces.Discrete(self.NTRANSITIONS)     
+      self.observation_space = spaces.Box(-self.high, self.high,dtype=np.int32)
 
+   
       #------------------Load and reconstruct the Petrinet from HTML file----------------# 
  
-      class Place:
-          
+      class Place:          
           def __init__(self,name,token,In_arcs,Out_arcs,time,features,waiting_time):
             
               self.pname =name
@@ -247,7 +248,7 @@ class PetriEnv(gym.Env):
   
         
       firing_array =pd.DataFrame(np.zeros(self.NTRANSITIONS),index=self.Transition_names)
-      firing_array.iloc[int(action)]=1
+      firing_array.iloc[int (action)]=1
    
       Next_marking_values=(firing_array.T.values.dot(self.Combined_incidence.T.values)+ current_marking)[0].astype(np.int64)
       Next_marking=pd.DataFrame(Next_marking_values,index=self.Places_names,columns=["Current"],dtype="int64")
@@ -263,11 +264,9 @@ class PetriEnv(gym.Env):
 
       #generate the feature matrix
       for i in self.Places_obj:
-          feature_array.append(i.features)       
-      feature_matrix =np.matrix(feature_array)
-      FM = pd.DataFrame(data=feature_matrix, index=self.Places_names,columns=None)
-      
-      
+              feature_array.append(i.features) 
+      FM=np.array(feature_array)
+ 
 
       if  not possible  :
 
@@ -304,9 +303,10 @@ class PetriEnv(gym.Env):
         
      
          
-  def Reward(self,Next_state,delivery): 
+  def Reward(self,Next_state,delivery,): 
       
       reward=0
+
      
       if  int(self.marking["OB"])>self.goal:
           
@@ -314,6 +314,11 @@ class PetriEnv(gym.Env):
           reward=+1000
           #print("Goal achieved !! ")  
           self.Terminal=True
+          
+      elif self.delivered<int(self.marking["OB"]):
+          # a piece is delivered       
+          reward=+500   
+          #print("a piece is delivered  ")  
           
       elif self.Terminal==True :
           # dead lock
@@ -328,9 +333,13 @@ class PetriEnv(gym.Env):
       else :
           # firing sccessful                   
           reward=-self.simulation_clock*10
-            #print("in process firing successful" )
+          #print("in process firing successful" )
+    
+      self.delivered=int(self.marking["OB"])   
+     # print(int(self.marking["OB"]))
       
       return reward  
+      
   
         
   
@@ -341,10 +350,9 @@ class PetriEnv(gym.Env):
       done=False
       info = {}
       observation=[]
-      Max_steps=500 # maximum steps in episode before terminating the eipsode
       self.simulation_clock+=1
       
-      #print (f"****** Simulation Clock {self.simulation_clock}  ****** ")
+      print (f"****** Simulation Clock {self.simulation_clock}  ****** ")
 
       for p in self.Places_obj: 
           
@@ -368,14 +376,16 @@ class PetriEnv(gym.Env):
           #print("no fireable transition available episode Terminated ")
           self.Terminal=True  
           
-      elif self.simulation_clock> Max_steps:
+      elif self.simulation_clock> self.max_steps:
           #print("No response episode Terminated")
           self.Terminal=True 
           
              
       Nxmarking,Timefeatures,fired,inprocess=self.fire_transition (action)
       
-      observation=np.array(tuple(Nxmarking)).astype(np.int64)
+      observation=Timefeatures
+     #observation=np.array(tuple(Nxmarking)).astype(np.int64)
+
       reward=self.Reward(Nxmarking,fired)
       info.update({"Action": self.Transition_names[action]})
       done=self.Terminal
@@ -392,19 +402,18 @@ class PetriEnv(gym.Env):
 
 
       self.Terminal=False  
-      self.marking=self.initial_marking
-      self.episode_actions_history=[]
-      self.grafic_container=[]
       self.episode_timing=0
       self.episode_reward=0
       self.simulation_clock=0
-      
-      return  np.array(tuple(self.initial_marking)).astype(np.int64)
-      
-      
+      self.grafic_container=[]
+      self.episode_actions_history=[]
+      self.marking=self.initial_marking
+          
+      return   np.array([[-1]*self.feature_dimesion]*self.NPLACES,dtype=np.int32)
+              #np.array(tuple(self.initial_marking)).astype(np.int64)
+   
         
-  def render(self):
-           
+  def render(self):           
       
       clock = pygame.time.Clock()   
       try:

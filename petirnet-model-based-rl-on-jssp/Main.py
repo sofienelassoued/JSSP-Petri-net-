@@ -1,12 +1,17 @@
 import gym
 import gym_petrinet
+import pandas as pd
+import numpy as np
 from stable_baselines3 import DQN
-
-
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.cmd_util import make_vec_env
 #%%
 
 # Create environment
 env = gym.make("petri-v0")
+check_env(env, warn=True)
+#env = make_vec_env(lambda: env, n_envs=1)
+#%%
 
 # Instantiate the agent
 model = DQN('MlpPolicy', env, learning_rate=1e-3, verbose=1)
@@ -24,11 +29,19 @@ model.save("dqn_Petri")
 
 # Enjoy trained agent
 obs = env.reset()
-for i in range(100):
+for i in range(10):
     action, _states = model.predict(obs)
     #print(action)
-    obs, rewards, dones, info = env.step(action,True,i)
-
+    obs, rewards, dones, info = env.step(action,testing=True)
+    
 env.render()
     
-#%% print()
+
+#%%N
+
+feature_array=[]
+for i in env.Places_obj:
+    feature_array.append(i.features) 
+    FM=np.array(feature_array)
+      
+print(FM)
