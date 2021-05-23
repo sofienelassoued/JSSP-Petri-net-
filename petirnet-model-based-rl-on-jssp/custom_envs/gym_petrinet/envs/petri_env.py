@@ -14,7 +14,7 @@ import os
 from graphviz import Digraph
 from graphviz import render
 from random import sample
-import copy
+
 
 
 #%% Main environement 
@@ -51,8 +51,7 @@ class PetriEnv(gym.Env):
       self.grafic_container=[]
       self.saved_render=[]
       
-  
-      self.path = "D:\Sciebo\Semester 4 (Project Thesis)\Programming\Petrinet modelisation/petri4.html"
+      self.path = os.getcwd()+"\Petrinet modelisation/petri4.html"
       self.Forwards_incidence = pd.read_html(self.path,header=0,index_col=0)[1]
       self.Backwards_incidence= pd.read_html(self.path,header=0,index_col=0)[3]
       self.Combined_incidence = pd.read_html(self.path,header=0,index_col=0)[5]
@@ -163,7 +162,7 @@ class PetriEnv(gym.Env):
       
  
         
-  def Create_Snapshot(self,action,fired,inprocess,reward,episode=1):
+  def Create_Snapshot(self,action,fired,inprocess,reward,firing,episode=1):
 
       def graph_generater(action,fired,inprocess):
                  
@@ -197,9 +196,11 @@ class PetriEnv(gym.Env):
      
 
       black = (0, 0, 0)
+      blue = (0, 0, 255)
       
       pygame.font.init()
       font = pygame.font.Font('freesansbold.ttf', 15)
+      font2 = pygame.font.SysFont('arial', 12)
       
       petri=graph_generater(action,fired,inprocess)  
       petri.render(str(self.simulation_clock),cleanup=True)
@@ -207,12 +208,13 @@ class PetriEnv(gym.Env):
       image=pygame.image.load(str(self.simulation_clock)+".png") 
       Episode=font.render(str("Episode : "+str (episode)), True, black)   
       Step=font.render(str("Step : "+str (self.simulation_clock)), True, black)        
-      Reward=font.render(str("Reward : "+str (reward)), True, black)
+      Reward=font.render(str("Reward : "+str (reward)), True, blue)
+      firing=font2.render(str(firing), True, blue)
       
       display_width = image.get_width()
       display_height =image.get_height()
       screen_shot=pygame.Surface((display_width,display_height))  
-      screen_shot.blits(blit_sequence=((image,(0,0)),(Episode,(0,0)),(Step,(0,20)),(Reward,(0,40))))
+      screen_shot.blits(blit_sequence=((image,(5,0)),(Episode,(5,0)),(Step,(5,20)),(Reward,(5,40)),(firing,(5,60))))
   
       self.grafic_container.append (screen_shot)  
       self.saved_render.append (screen_shot)
@@ -315,33 +317,33 @@ class PetriEnv(gym.Env):
           
           # Goal achieved  
           reward=+1000
-          #print("Goal achieved !! ")  
+          firing_info="Goal achieved !! "  
           self.Terminal=True
           
       elif self.delivered<int(self.marking["OB"]):
           # a piece is delivered       
           reward=+500   
-          #print("a piece is delivered  ")  
+          firing_info="a piece is delivered  "
           
       elif self.Terminal==True :
           # dead lock
           reward=-1000
-          #print ("Dead lock")
+          firing_info="Dead lock"
 
       elif delivery == False :
           # firing halted
           reward=-500
-          #print("in process firing halted" )
+          firing_info="in process firing halted" 
             
       else :
           # firing sccessful                   
           reward=-self.simulation_clock
-          #print("in process firing successful" )
+          firing_info="in process firing successful"
     
       self.delivered=int(self.marking["OB"])   
      # print(int(self.marking["OB"]))
       
-      return reward  
+      return reward ,firing_info
       
   
         
@@ -388,16 +390,15 @@ class PetriEnv(gym.Env):
       Nxmarking,Timefeatures,fired,inprocess=self.fire_transition (action)
       
       observation=Timefeatures
-     #observation=np.array(tuple(Nxmarking)).astype(np.int64)
-
-      reward=self.Reward(Nxmarking,fired)
+      reward,firing_info=self.Reward(Nxmarking,fired)
       info.update({"Action": self.Transition_names[action]})
       done=self.Terminal
 
       self.marking=Nxmarking  
       
+      
       if testing==True: 
-          self.Create_Snapshot(self.Transition_names[action],fired,inprocess,reward,episode)
+          self.Create_Snapshot(self.Transition_names[action],fired,inprocess,reward,firing_info,episode)
           
       return observation, reward, done, info
         
@@ -419,7 +420,7 @@ class PetriEnv(gym.Env):
         
   def render(self,replay=False):  
       
-      
+      W = (255,255,255)
       clock = pygame.time.Clock()   
       try:
        display_width = self.grafic_container[0].get_width()
@@ -433,12 +434,12 @@ class PetriEnv(gym.Env):
       pygame.display.init()   
       pygame.display.set_caption('Petrinet')
       Display = pygame.display.set_mode((display_width,display_height))
+      
        
       clock.tick(1)
       for i in range (len(self.grafic_container)):
-
-          pygame.time.wait(500)
           
+          pygame.time.wait(500)    
           if replay==False:Display.blit(self.grafic_container[i],(0,0))
           else:Display.blit(self.saved_render[i],(0,0))    
           
