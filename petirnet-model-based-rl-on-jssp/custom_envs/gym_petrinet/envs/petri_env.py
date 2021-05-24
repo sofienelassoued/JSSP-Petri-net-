@@ -51,7 +51,7 @@ class PetriEnv(gym.Env):
       self.grafic_container=[]
       self.saved_render=[]
       
-      self.path = os.getcwd()+"\Petrinet modelisation/petri4.html"
+      self.path = os.getcwd()+"\modelisation/2.html"
       self.Forwards_incidence = pd.read_html(self.path,header=0,index_col=0)[1]
       self.Backwards_incidence= pd.read_html(self.path,header=0,index_col=0)[3]
       self.Combined_incidence = pd.read_html(self.path,header=0,index_col=0)[5]
@@ -75,9 +75,12 @@ class PetriEnv(gym.Env):
       self.delivered=0
       self.marking =self.initial_marking
       self.feature_dimesion=2*max (self.initial_marking)
-      self.high=np.array([[self.max_steps]*self.feature_dimesion]*self.NPLACES,dtype=np.int32)
+      self.features_matrix=np.array([[-1]*self.feature_dimesion]*self.NPLACES,dtype=np.int32)
+     
+      #self.high=np.array([[self.max_steps]*self.feature_dimesion]*self.NPLACES,dtype=np.int32)
+      self.high=np.array([self.max_steps]*self.NPLACES,dtype=np.int32)
       
-      self.action_space = spaces.Discrete(self.NTRANSITIONS)     
+      self.action_space = spaces.Discrete(self.NTRANSITIONS)   
       self.observation_space = spaces.Box(-self.high, self.high,dtype=np.int32)
 
    
@@ -215,7 +218,7 @@ class PetriEnv(gym.Env):
       display_width = image.get_width()
       display_height =image.get_height()
       screen_shot=pygame.Surface((display_width,display_height))  
-      screen_shot.blits(blit_sequence=((image,(5,0)),(Episode,(5,0)),(Step,(5,20)),(Reward,(5,40)),(firing,(5,60))))
+      screen_shot.blits(blit_sequence=((image,(0,0)),(Episode,(0,0)),(Step,(0,20)),(Reward,(0,40)),(firing,(0,60))))
   
       self.grafic_container.append (screen_shot)  
       self.saved_render.append (screen_shot)
@@ -271,7 +274,9 @@ class PetriEnv(gym.Env):
       #generate the feature matrix
       for i in self.Places_obj:
               feature_array.append(i.features) 
+              
       FM=np.array(feature_array)
+      self.features_matrix=FM
  
 
       if  not possible  :
@@ -391,7 +396,9 @@ class PetriEnv(gym.Env):
              
       Nxmarking,Timefeatures,fired,inprocess=self.fire_transition (action)
       
-      observation=Timefeatures
+      
+      #observation=Timefeatures
+      observation=np.array(tuple(Nxmarking)).astype(np.int32)
       reward,firing_info=self.Reward(Nxmarking,fired)
       info.update({"Action": self.Transition_names[action]})
       done=self.Terminal
@@ -399,8 +406,9 @@ class PetriEnv(gym.Env):
       self.marking=Nxmarking  
       
       
-      if testing==True: 
+      if testing==True: # take a snapshot in testing fase 
           self.Create_Snapshot(self.Transition_names[action],fired,inprocess,reward,firing_info,episode)
+          print ("Screenshot for step {} created ".format(self.simulation_clock))
           
       return observation, reward, done, info
         
@@ -416,17 +424,21 @@ class PetriEnv(gym.Env):
       self.episode_actions_history=[]
       self.marking=self.initial_marking
           
-      return   np.array([[-1]*self.feature_dimesion]*self.NPLACES,dtype=np.int32)
-              #np.array(tuple(self.initial_marking)).astype(np.int64)
+      return  np.array(tuple(self.initial_marking)).astype(np.int32)
+              #self.features_matrix 
+              
    
         
   def render(self,replay=False):  
       
-
-      clock = pygame.time.Clock()   
+      speed =300
+      margin=100
+      white = [255,255,255]
+      clock = pygame.time.Clock() 
+      
       try:
-       display_width = self.grafic_container[0].get_width()
-       display_height =self.grafic_container[0].get_height()
+       display_width = (self.grafic_container[0].get_width())+margin
+       display_height =(self.grafic_container[0].get_height())+margin
           
       except:
           display_width=300
@@ -438,11 +450,13 @@ class PetriEnv(gym.Env):
       Display = pygame.display.set_mode((display_width,display_height))
       
        
+        
       clock.tick(1)
       for i in range (len(self.grafic_container)):
           
-          pygame.time.wait(500)    
-          if replay==False:Display.blit(self.grafic_container[i],(0,0))
+          pygame.time.wait(speed)  
+          Display.fill(white)
+          if replay==False:Display.blit(self.grafic_container[i],(20,0))
           else:Display.blit(self.saved_render[i],(0,0))    
           
           pygame.display.update()

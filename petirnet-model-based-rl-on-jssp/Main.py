@@ -19,19 +19,19 @@ import gym_petrinet
 env = gym.make("petri-v0")
 check_env(env, warn=True)
 #env = make_vec_env(lambda: env, n_envs=1)
-#%% load , make , chek custom petrinet env 
+#%% Train model 
 
 # Instantiate the agent
 model = DQN('MlpPolicy', env, learning_rate=1e-3, verbose=1)
 # Train the agent
 model.learn(total_timesteps=int(2e5))
 # Save the agent
-model.save("dqn_Petri")
-del model  # delete trained model to demonstrate loading
+#model.save("dqn_Petri")
+#del model  # delete trained model to demonstrate loading
 
-#%%Load the trained agent and test 
+#%% Test model 
 
-model = DQN.load("dqn_Petri")
+#model = DQN.load("dqn_Petri")
 # Evaluate the agent
 mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=10)
 # Enjoy trained agent
@@ -39,9 +39,10 @@ obs = env.reset()
 for i in range(100):
     action, _states = model.predict(obs)
     #print(action)
-    obs, rewards, dones, info = env.step(action)
+    obs, rewards, dones, info = env.step(action,True)
     
 env.render()
 print(mean_reward)  
 
 #%%Ntesting 
+env.render()
