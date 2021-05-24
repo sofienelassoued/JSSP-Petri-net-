@@ -94,6 +94,7 @@ class PetriEnv(gym.Env):
               self.waiting_time=waiting_time
               self.process_time=0
               self.features=features
+              self.features[0]=token 
  
                   
 
@@ -316,28 +317,29 @@ class PetriEnv(gym.Env):
       if  int(self.marking["OB"])>self.goal:
           
           # Goal achieved  
-          reward=+1000
+          reward=+100
           firing_info="Goal achieved !! "  
           self.Terminal=True
           
       elif self.delivered<int(self.marking["OB"]):
           # a piece is delivered       
-          reward=+500   
+          reward=+10  
           firing_info="a piece is delivered  "
           
       elif self.Terminal==True :
           # dead lock
-          reward=-1000
+          reward=-10
           firing_info="Dead lock"
 
       elif delivery == False :
           # firing halted
-          reward=-500
+          reward=-5
           firing_info="in process firing halted" 
             
       else :
-          # firing sccessful                   
-          reward=-self.simulation_clock
+          # firing sccessful  
+          #reward=-self.simulation_clock                 
+          reward=5
           firing_info="in process firing successful"
     
       self.delivered=int(self.marking["OB"])   
@@ -420,7 +422,7 @@ class PetriEnv(gym.Env):
         
   def render(self,replay=False):  
       
-      W = (255,255,255)
+
       clock = pygame.time.Clock()   
       try:
        display_width = self.grafic_container[0].get_width()
