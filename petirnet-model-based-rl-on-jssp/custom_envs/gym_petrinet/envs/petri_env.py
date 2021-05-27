@@ -431,7 +431,7 @@ class PetriEnv(gym.Env):
         
   def render(self,replay=False):  
       
-      speed =300
+      speed =200
       margin=100
       white = [255,255,255]
       clock = pygame.time.Clock() 
@@ -452,20 +452,29 @@ class PetriEnv(gym.Env):
        
         
       clock.tick(1)
-      for i in range (len(self.grafic_container)):
+      
+      while True :
           
-          pygame.time.wait(speed)  
-          Display.fill(white)
-          if replay==False:Display.blit(self.grafic_container[i],(20,0))
-          else:Display.blit(self.saved_render[i],(0,0))    
           
-          pygame.display.update()
+          for i in range (len(self.grafic_container)):
+          
+              pygame.time.wait(speed)  
+              Display.fill(white)
+              if replay==False:Display.blit(self.grafic_container[i],(20,0))
+              else:Display.blit(self.saved_render[i],(0,0))    
+              pygame.display.update()
+              
 
-          for event in pygame.event.get() :
-             if event.type == pygame.QUIT :
+              for event in pygame.event.get() :
+                  if event.type == pygame.QUIT :
+                      pygame.quit()
+                      
+      
+      for event in pygame.event.get() :
+             if event.type == pygame.QUIT :  
                 pygame.quit()
+                break
 
-      pygame.display.quit()
       
       
   def close(self):

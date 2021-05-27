@@ -20,17 +20,17 @@ env = gym.make("petri-v0")
 check_env(env, warn=True)
 #env = make_vec_env(lambda: env, n_envs=1)
 
-#%% Train the model (for the Uni Pc )
+#%% Test saved model 
 
-# Instantiate the agent
-model = DQN('MlpPolicy', env, learning_rate=1e-3, verbose=1)
-# Train the agent
-model.learn(total_timesteps=int(2e5))
-# Save the agent
-model.save("Trained models\dqn_Petrinet_.zip")
+model = DQN.load("Trained models\dqn_Petrinet_1.zip")
 
-mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=10)
+obs = env.reset()
+for i in range(50):
+    action, _states = model.predict(obs)
+    #print(action)
+    obs, rewards, dones, info = env.step(action,True)
+    
+env.render()
 
-print(mean_reward,std_reward)
 #%%Ntesting 
 

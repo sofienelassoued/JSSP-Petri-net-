@@ -24,9 +24,9 @@ check_env(env, warn=True)
 # Instantiate the agent
 model = DQN('MlpPolicy', env, learning_rate=1e-3, verbose=1)
 # Train the agent
-model.learn(total_timesteps=int(2e5))
+model.learn(total_timesteps=int(1e6))
 # Save the agent
-#model.save("dqn_Petri")
+model.save("dqn_Petri_laptop")
 #del model  # delete trained model to demonstrate loading
 
 #%% Test model 
@@ -45,4 +45,5 @@ env.render()
 print(mean_reward)  
 
 #%%Ntesting 
-env.render()
+Nxmarking,Timefeatures,fired,inprocess=env.fire_transition (0)
+print()
