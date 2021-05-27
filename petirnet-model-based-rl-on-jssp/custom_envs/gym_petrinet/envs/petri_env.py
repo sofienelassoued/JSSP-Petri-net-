@@ -1,4 +1,3 @@
-
 #%% Libraries importation
 import gym
 from gym import error, spaces, utils
@@ -170,7 +169,7 @@ class PetriEnv(gym.Env):
 
       def graph_generater(action,fired,inprocess):
                  
-           g = Digraph('output', format='png' ) 
+           g = Digraph('output', format='jpg' ) 
            
            for n in self.Places_obj:     
                place=str(str(n.pname)+" ("+str(n.token)+")")
@@ -209,7 +208,7 @@ class PetriEnv(gym.Env):
       petri=graph_generater(action,fired,inprocess)  
       petri.render(str(self.simulation_clock),cleanup=True)
       
-      image=pygame.image.load(str(self.simulation_clock)+".png") 
+      image=pygame.image.load(str(self.simulation_clock)+".jpg") 
       Episode=font.render(str("Episode : "+str (episode)), True, black)   
       Step=font.render(str("Step : "+str (self.simulation_clock)), True, black)        
       Reward=font.render(str("Reward : "+str (reward)), True, blue)
@@ -222,7 +221,7 @@ class PetriEnv(gym.Env):
   
       self.grafic_container.append (screen_shot)  
       self.saved_render.append (screen_shot)
-      os.remove(str(self.simulation_clock)+".png")
+      os.remove(str(self.simulation_clock)+".jpg")
  
                     
   def possible_firing(self) :
@@ -429,9 +428,9 @@ class PetriEnv(gym.Env):
               
    
         
-  def render(self,replay=False):  
+  def render(self,replay=False,continues=True):  
       
-      speed =200
+      speed =300
       margin=100
       white = [255,255,255]
       clock = pygame.time.Clock() 
@@ -450,34 +449,71 @@ class PetriEnv(gym.Env):
       Display = pygame.display.set_mode((display_width,display_height))
       
        
-        
+      frame =0  
       clock.tick(1)
+      restart=True
+      paused=False
       
-      while True :
-          
-          
-          for i in range (len(self.grafic_container)):
-          
-              pygame.time.wait(speed)  
-              Display.fill(white)
-              if replay==False:Display.blit(self.grafic_container[i],(20,0))
-              else:Display.blit(self.saved_render[i],(0,0))    
+      
+      if continues==True:
+          while True :          
+              if restart==True:
+                  
+                  for i in range (len(self.grafic_container)):
+              
+                      pygame.time.wait(speed)  
+                      Display.fill(white)
+                      if replay==False:Display.blit(self.grafic_container[i],(20,0))
+                      else:Display.blit(self.saved_render[i],(0,0))  
+                      
+                      pygame.display.update()
+                      for event in pygame.event.get() :
+                          if event.type == pygame.QUIT :  
+                              pygame.quit()
+                              break
+                          #Pause the animation  use "p" to pause and "c" to continue 
+                          elif event.type == pygame.KEYDOWN:
+                              if event.key == pygame.K_p:
+                                  paused=True
+                                  while paused==True :
+                                      Display.blit(self.saved_render[i],(0,0))
+                                      for event in pygame.event.get() :
+                                          if event.type == pygame.KEYDOWN:
+                                              if event.key == pygame.K_c:
+                                                  paused=False
+                                                  break
+                  restart=False
+              #replay the animation     
+              for event in pygame.event.get() :
+                   if event.type == pygame.QUIT :
+                              pygame.quit()
+                              break
+                   elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        restart=True
+                        
+      else : #play the animation frame by frame use Left and right keys:
+      
+          while True: 
+            
+              Display.fill(white)    
+              if replay==False:Display.blit(self.grafic_container[frame],(20,0))
+              else:Display.blit(self.saved_render[frame],(0,0)) 
               pygame.display.update()
               
-
-              for event in pygame.event.get() :
+              for event in pygame.event.get() :     
                   if event.type == pygame.QUIT :
                       pygame.quit()
-                      
-      
-      for event in pygame.event.get() :
-             if event.type == pygame.QUIT :  
-                pygame.quit()
-                break
-
-      
-      
+                      break
+                 
+                  elif event.type == pygame.KEYDOWN:                   
+                      if event.key == pygame.K_RIGHT: 
+                         if frame <len(self.grafic_container)-1:frame+=1           
+                      elif event.key ==pygame.K_LEFT: 
+                          if frame >0 :frame-=1
+                         
+                                  
+  
   def close(self):
       pygame.display.quit()
          
-

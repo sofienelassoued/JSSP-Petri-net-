@@ -25,12 +25,12 @@ check_env(env, warn=True)
 model = DQN.load("Trained models\dqn_Petrinet_1.zip")
 
 obs = env.reset()
-for i in range(50):
+for i in range(10):
     action, _states = model.predict(obs)
     #print(action)
     obs, rewards, dones, info = env.step(action,True)
     
-env.render()
+env.render(continues=False)
 
 #%%Ntesting 
 
