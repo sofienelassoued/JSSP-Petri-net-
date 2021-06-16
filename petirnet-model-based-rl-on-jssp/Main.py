@@ -31,19 +31,24 @@ model.save("dqn_Petri_laptop")
 
 #%% Test model 
 
-#model = DQN.load("dqn_Petri")
-# Evaluate the agent
-mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=10)
-# Enjoy trained agent
-obs = env.reset()
-for i in range(100):
-    action, _states = model.predict(obs)
-    #print(action)
-    obs, rewards, dones, info = env.step(action,True)
+episodes=3
+model = DQN.load("Trained models\dqn_Petrinet_1.zip")
+
+for ep in range (episodes):
+    
+    dones =False
+    ep_reward=0
+    obs = env.reset()
+    
+    while not dones:
+        action, _states = model.predict(obs)
+        obs, rewards, dones, info = env.step(action,True,ep) 
+        ep_reward+=rewards
+
+    print(ep_reward)
     
 env.render()
-print(mean_reward)  
-
+    
 #%%Ntesting 
 Nxmarking,Timefeatures,fired,inprocess=env.fire_transition (0)
 print()

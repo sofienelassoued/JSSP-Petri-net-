@@ -1,0 +1,28 @@
+digraph output {
+	"IB (0)" [color=black]
+	"P1 (6)" [color=black]
+	"P2 (2)" [color=black]
+	"P3 (10)" [color=black]
+	"P4 (13)" [color=black]
+	"OB (0)" [color=black]
+	T0 [color=black shape=box]
+	T1 [color=black shape=box]
+	T2 [color=red shape=box]
+	T3 [color=black shape=box]
+	T4 [color=black shape=box]
+	"IB (0)" -> T0
+	"IB (0)" -> T1
+	"IB (0)" -> T2
+	T0 -> "P1 (6)" [color=black]
+	T1 -> "P1 (6)" [color=black]
+	"P1 (6)" -> T3
+	T1 -> "P2 (2)" [color=black]
+	"P2 (2)" -> T3
+	T1 -> "P3 (10)" [color=black]
+	T2 -> "P3 (10)" [color=black]
+	"P3 (10)" -> T3
+	T2 -> "P4 (13)" [color=black]
+	"P4 (13)" -> T4
+	T3 -> "OB (0)" [color=black]
+	T4 -> "OB (0)" [color=black]
+}

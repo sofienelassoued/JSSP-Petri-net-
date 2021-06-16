@@ -321,18 +321,18 @@ class PetriEnv(gym.Env):
       if  int(self.marking["OB"])>self.goal:
           
           # Goal achieved  
-          reward=+100
+          reward=+10
           firing_info="Goal achieved !! "  
           self.Terminal=True
           
       elif self.delivered<int(self.marking["OB"]):
           # a piece is delivered       
-          reward=+10  
+          reward=+7 
           firing_info="a piece is delivered  "
           
       elif self.Terminal==True :
           # dead lock
-          reward=-10
+          reward=-7
           firing_info="Dead lock"
 
       elif delivery == False :

@@ -22,15 +22,31 @@ check_env(env, warn=True)
 
 #%% Test saved model 
 
+
+episodes=3
 model = DQN.load("Trained models\dqn_Petrinet_1.zip")
 
-obs = env.reset()
-for i in range(10):
-    action, _states = model.predict(obs)
-    #print(action)
-    obs, rewards, dones, info = env.step(action,True)
+
+
+for ep in range (episodes):
     
-env.render(continues=False)
+    dones =False
+    ep_reward=0
+    obs = env.reset()
+    
+    while not dones:
+        action, _states = model.predict(obs)
+        obs, rewards, dones, info = env.step(action,True,ep) 
+        ep_reward+=rewards
+
+    print(ep_reward)
+    
+env.render()
+    
+
 
 #%%Ntesting 
 
+#mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=10)
+#%%
+#env.render(continues=False)
