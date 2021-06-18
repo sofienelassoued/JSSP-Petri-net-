@@ -25,12 +25,13 @@ check_env(env, warn=True)
 # Instantiate the agent
 model = DQN('MlpPolicy', env, learning_rate=1e-3, verbose=1)
 # Train the agent
-model.learn(total_timesteps=int(2e5))
+model.learn(total_timesteps=int(5e5))
 # Save the agent
-model.save("Trained models\dqn_Petrinet_.zip")
+model.save("Trained models\dqn_Petrinet_dot.zip")
 
 mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=10)
 
 print(mean_reward,std_reward)
+
 #%%Ntesting 
 

@@ -31,7 +31,7 @@ model.save("dqn_Petri_laptop")
 
 #%% Test model 
 
-episodes=3
+episodes=100
 model = DQN.load("Trained models\dqn_Petrinet_1.zip")
 
 for ep in range (episodes):
@@ -42,7 +42,7 @@ for ep in range (episodes):
     
     while not dones:
         action, _states = model.predict(obs)
-        obs, rewards, dones, info = env.step(action,True,ep) 
+        obs, rewards, dones, info = env.step(action,False,ep) 
         ep_reward+=rewards
 
     print(ep_reward)

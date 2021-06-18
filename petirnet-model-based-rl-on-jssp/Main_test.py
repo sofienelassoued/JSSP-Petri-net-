@@ -15,38 +15,51 @@ for env in env_dict:
         del gym.envs.registration.registry.env_specs[env]
 import gym_petrinet
 
+#%%
 # Create environment
 env = gym.make("petri-v0")
 check_env(env, warn=True)
-#env = make_vec_env(lambda: env, n_envs=1)
+
 
 #%% Test saved model 
 
-
-episodes=3
-model = DQN.load("Trained models\dqn_Petrinet_1.zip")
-
-
+episodes=1
+model = DQN.load("Trained models\dqn_Petrinet_dot.zip")
 
 for ep in range (episodes):
     
     dones =False
     ep_reward=0
+    ep_steps=0
     obs = env.reset()
     
     while not dones:
-        action, _states = model.predict(obs)
+        action, _states = model.predict(obs,deterministic=True)
         obs, rewards, dones, info = env.step(action,True,ep) 
         ep_reward+=rewards
+        ep_steps+=1
 
-    print(ep_reward)
-    
+    print("Total episode Reward : {}".format(ep_reward))
+    print("Total episode Steps : {}".format(ep_steps))
+   
 env.render()
     
-
-
 #%%Ntesting 
 
 #mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=10)
+
 #%%
-#env.render(continues=False)
+
+observation, reward, done, info=env.step(0)
+
+print (observation)
+print (observation.shape)
+
+print (env.observation_space.sample())
+print (env.observation_space.sample().shape)
+
+print (obs)
+print (obs.shape)
+
+print (env.reset())
+print (env.reset().shape)

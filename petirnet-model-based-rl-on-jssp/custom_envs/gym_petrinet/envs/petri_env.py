@@ -58,7 +58,7 @@ class PetriEnv(gym.Env):
       self.initial_marking =pd.read_html(self.path,header=0,index_col=0)[9].loc["Current"]
       
       self.process_timing = {"P16":3,"P12":1,"P14":2,"P6":3,"P2":1,"P4":5}
-      #elf.process_time = {"P16":0,"P12":0,"P14":0,"P6":0,"P2":0,"P4":0}
+      #self.process_time = {"P16":0,"P12":0,"P14":0,"P6":0,"P2":0,"P4":0}
              
       self.Places_names= self.Forwards_incidence.index.tolist()
       self.NPLACES=len( self.Places_names)
@@ -73,14 +73,13 @@ class PetriEnv(gym.Env):
       self.goal=10
       self.delivered=0
       self.marking =self.initial_marking
-      self.feature_dimesion=2*max (self.initial_marking)
-      self.features_matrix=np.array([[-1]*self.feature_dimesion]*self.NPLACES,dtype=np.int32)
-     
-      #self.high=np.array([[self.max_steps]*self.feature_dimesion]*self.NPLACES,dtype=np.int32)
-      self.high=np.array([self.max_steps]*self.NPLACES,dtype=np.int32)
-      
+ 
       self.action_space = spaces.Discrete(self.NTRANSITIONS)   
-      self.observation_space = spaces.Box(-self.high, self.high,dtype=np.int32)
+      
+      self.observation_space = spaces.Box(low=-100, high=100, shape=(1,5),dtype=np.int32)
+      #self.observation_space = spaces.Box(low=-100, high=100, shape=(6,6),dtype=np.int32)
+      
+      
 
    
       #------------------Load and reconstruct the Petrinet from HTML file----------------# 
@@ -123,7 +122,7 @@ class PetriEnv(gym.Env):
           name=i
           time=0
           token=self.marking[i]
-          feature=[-1]*self.feature_dimesion
+          feature=[-1]*len(self.marking)
           waiting_time=0
 
           for j in self.Forwards_incidence.columns.tolist() :   
@@ -165,7 +164,7 @@ class PetriEnv(gym.Env):
       
  
         
-  def Create_Snapshot(self,action,fired,inprocess,reward,firing,episode=1):
+  def Create_Snapshot(self,action,fired,inprocess,reward,firing,episode=0,):
 
       def graph_generater(action,fired,inprocess):
                  
@@ -197,13 +196,13 @@ class PetriEnv(gym.Env):
                    
            return g   
      
-
+      white= (255, 255, 255)
       black = (0, 0, 0)
       blue = (0, 0, 255)
       
       pygame.font.init()
-      font = pygame.font.Font('freesansbold.ttf', 15)
-      font2 = pygame.font.SysFont('arial', 12)
+      font = pygame.font.Font('freesansbold.ttf', 12)
+      font2 = pygame.font.SysFont('arial', 11)
       
       petri=graph_generater(action,fired,inprocess)  
       petri.render(str(self.simulation_clock),cleanup=True)
@@ -211,13 +210,15 @@ class PetriEnv(gym.Env):
       image=pygame.image.load(str(self.simulation_clock)+".jpg") 
       Episode=font.render(str("Episode : "+str (episode)), True, black)   
       Step=font.render(str("Step : "+str (self.simulation_clock)), True, black)        
-      Reward=font.render(str("Reward : "+str (reward)), True, blue)
+      step_Reward=font.render(str("Step Reward : "+str (reward)), True, blue)
+      ep_Reward=font.render(str("Episode Reward : "+str (self.episode_reward)), True, blue)
       firing=font2.render(str(firing), True, blue)
       
       display_width = image.get_width()
       display_height =image.get_height()
-      screen_shot=pygame.Surface((display_width,display_height))  
-      screen_shot.blits(blit_sequence=((image,(0,0)),(Episode,(0,0)),(Step,(0,20)),(Reward,(0,40)),(firing,(0,60))))
+      screen_shot=pygame.Surface((display_width,display_height+100)) 
+      screen_shot.fill(white)
+      screen_shot.blits(blit_sequence=((Episode,(5,0)),(Step,(5,20)),(firing,(5,40)),(step_Reward,(5,60)),(ep_Reward,(5,80)),(image,(0,100))))
   
       self.grafic_container.append (screen_shot)  
       self.saved_render.append (screen_shot)
@@ -269,14 +270,17 @@ class PetriEnv(gym.Env):
                  in_process=True
                  inp_rocess_Places.append(p.pname)
                  
+                       
 
-      #generate the feature matrix
-      for i in self.Places_obj:
-              feature_array.append(i.features) 
-              
-      FM=np.array(feature_array)
-      self.features_matrix=FM
- 
+      #generate the feature matrix Stacked 
+      #FM=pd.concat([self.marking,self.Combined_incidence], axis=1).to_numpy()
+      
+      #generate the feature matrix multiplied   
+      FM=self.Combined_incidence.T.values.dot(current_marking).reshape(1,5)
+      
+      
+
+
 
       if  not possible  :
 
@@ -350,10 +354,7 @@ class PetriEnv(gym.Env):
      # print(int(self.marking["OB"]))
       
       return reward ,firing_info
-      
-  
-        
-  
+ 
 
   def step(self, action,testing=False,episode=0):
       
@@ -374,10 +375,7 @@ class PetriEnv(gym.Env):
 
 
           if p.process_time>0:     
-              p.waiting_time-=1 #update internal clock 
-                           
-          for j in range (1,p.token+1):    # update the feature vector in places objects     
-              p.features[j]=p.waiting_time
+              p.waiting_time-=1 #update internal clock                          
  
       for t in self.Transition_obj: #Synchronising dic and Obj Transition      
           self.Transition_dict[t.tname]= [t.time,t.In_arcs,t.Out_arcs]         
@@ -393,16 +391,17 @@ class PetriEnv(gym.Env):
           self.Terminal=True 
           
              
-      Nxmarking,Timefeatures,fired,inprocess=self.fire_transition (action)
+      Nxmarking,features,fired,inprocess=self.fire_transition (action)
       
       
-      #observation=Timefeatures
-      observation=np.array(tuple(Nxmarking)).astype(np.int32)
+      
+      observation=features
       reward,firing_info=self.Reward(Nxmarking,fired)
       info.update({"Action": self.Transition_names[action]})
       done=self.Terminal
 
       self.marking=Nxmarking  
+      self.episode_reward+=reward
       
       
       if testing==True: # take a snapshot in testing fase 
@@ -419,25 +418,26 @@ class PetriEnv(gym.Env):
       self.episode_timing=0
       self.episode_reward=0
       self.simulation_clock=0
-      #self.grafic_container=[]
       self.episode_actions_history=[]
       self.marking=self.initial_marking
+      
+      array=np.array(np.zeros((1,5)),dtype=np.int32)  
+      matrix=np.array(np.zeros((6,6)),dtype=np.int32) 
           
-      return  np.array(tuple(self.initial_marking)).astype(np.int32)
-              #self.features_matrix 
-              
+      return    array 
+
    
         
   def render(self,replay=False,continues=True):  
       
-      speed =300
-      margin=100
-      white = [255,255,255]
+      speed =200
+      position=(0,0)
+      white= (255, 255, 255)
       clock = pygame.time.Clock() 
       
       try:
-       display_width = (self.grafic_container[0].get_width())+margin
-       display_height =(self.grafic_container[0].get_height())+margin
+       display_width = (self.grafic_container[0].get_width())
+       display_height =(self.grafic_container[0].get_height())+100
           
       except:
           display_width=300
@@ -447,24 +447,23 @@ class PetriEnv(gym.Env):
       pygame.display.init()   
       pygame.display.set_caption('Petrinet')
       Display = pygame.display.set_mode((display_width,display_height))
-      
+      Display.fill(white)
        
+         
       frame =0  
       clock.tick(1)
       restart=True
       paused=False
-      
-      
+           
       if continues==True:
           while True :          
               if restart==True:
                   
                   for i in range (len(self.grafic_container)):
               
-                      pygame.time.wait(speed)  
-                      Display.fill(white)
-                      if replay==False:Display.blit(self.grafic_container[i],(20,0))
-                      else:Display.blit(self.saved_render[i],(0,0))  
+                      pygame.time.wait(speed)               
+                      if replay==False:Display.blit(self.grafic_container[i],position)
+                      else:Display.blit(self.saved_render[i],position)  
                       
                       pygame.display.update()
                       for event in pygame.event.get() :
@@ -476,7 +475,7 @@ class PetriEnv(gym.Env):
                               if event.key == pygame.K_p:
                                   paused=True
                                   while paused==True :
-                                      Display.blit(self.saved_render[i],(0,0))
+                                      Display.blit(self.saved_render[i],position)
                                       for event in pygame.event.get() :
                                           if event.type == pygame.KEYDOWN:
                                               if event.key == pygame.K_c:
@@ -496,9 +495,8 @@ class PetriEnv(gym.Env):
       
           while True: 
             
-              Display.fill(white)    
-              if replay==False:Display.blit(self.grafic_container[frame],(20,0))
-              else:Display.blit(self.saved_render[frame],(0,0)) 
+              if replay==False:Display.blit(self.grafic_container[frame],position)
+              else:Display.blit(self.saved_render[frame],position) 
               pygame.display.update()
               
               for event in pygame.event.get() :     
