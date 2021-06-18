@@ -26,13 +26,13 @@ model = DQN('MlpPolicy', env, learning_rate=1e-3, verbose=1)
 # Train the agent
 model.learn(total_timesteps=int(1e6))
 # Save the agent
-model.save("dqn_Petri_laptop")
+model.save("Trained models\dqn_model3_dot3.zip")
 #del model  # delete trained model to demonstrate loading
 
 #%% Test model 
 
 episodes=100
-model = DQN.load("Trained models\dqn_Petrinet_1.zip")
+model = DQN.load("Trained models\dqn_model3_dot3.zip")
 
 for ep in range (episodes):
     

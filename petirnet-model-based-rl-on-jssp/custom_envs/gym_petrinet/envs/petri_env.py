@@ -50,15 +50,15 @@ class PetriEnv(gym.Env):
       self.grafic_container=[]
       self.saved_render=[]
       
-      self.path = os.getcwd()+"\modelisation/2.html"
+      self.path = os.getcwd()+"\modelisation/4.html"
       self.Forwards_incidence = pd.read_html(self.path,header=0,index_col=0)[1]
       self.Backwards_incidence= pd.read_html(self.path,header=0,index_col=0)[3]
       self.Combined_incidence = pd.read_html(self.path,header=0,index_col=0)[5]
       self.Inhibition_matrix = pd.read_html(self.path,header=0,index_col=0)[7]
       self.initial_marking =pd.read_html(self.path,header=0,index_col=0)[9].loc["Current"]
       
-      self.process_timing = {"P16":3,"P12":1,"P14":2,"P6":3,"P2":1,"P4":5}
-      #self.process_time = {"P16":0,"P12":0,"P14":0,"P6":0,"P2":0,"P4":0}
+      self.process_timing = {"S11":1,"S21":2,"S31":3,"S12":3,"S32":2,"S22":1}
+      #self.process_timing = {"S11":0,"S21":0,"S31":0,"S12":0,"S32":0,"S22":0}
              
       self.Places_names= self.Forwards_incidence.index.tolist()
       self.NPLACES=len( self.Places_names)
@@ -70,13 +70,13 @@ class PetriEnv(gym.Env):
       self.Transition_obj=[]
       self.Transition_dict={}
         
-      self.goal=10
+      self.goal=19
       self.delivered=0
       self.marking =self.initial_marking
  
       self.action_space = spaces.Discrete(self.NTRANSITIONS)   
       
-      self.observation_space = spaces.Box(low=-100, high=100, shape=(1,5),dtype=np.int32)
+      self.observation_space = spaces.Box(low=-100, high=100, shape=(1,self.NTRANSITIONS),dtype=np.int32)
       #self.observation_space = spaces.Box(low=-100, high=100, shape=(6,6),dtype=np.int32)
       
       
@@ -159,7 +159,7 @@ class PetriEnv(gym.Env):
           self.Transition_obj.append(Transition(name,time,In_arcs, Out_arcs))
           self.Transition_dict.update({name: [time,In_arcs, Out_arcs]})
             
-      #print ("Model Loaded from {}".format(self.path))
+      print ("Model Loaded from {}".format(self.path))
       
       
  
@@ -216,6 +216,12 @@ class PetriEnv(gym.Env):
       
       display_width = image.get_width()
       display_height =image.get_height()
+      
+      if  display_width >700 or display_height :
+          display_width=600
+          display_height=500
+          image = pygame.transform.scale(image, (display_width, display_height))
+          
       screen_shot=pygame.Surface((display_width,display_height+100)) 
       screen_shot.fill(white)
       screen_shot.blits(blit_sequence=((Episode,(5,0)),(Step,(5,20)),(firing,(5,40)),(step_Reward,(5,60)),(ep_Reward,(5,80)),(image,(0,100))))
@@ -248,7 +254,7 @@ class PetriEnv(gym.Env):
       possible=False
       in_process=False
       feature_array=[]
-      inp_rocess_Places=[]
+      in_process_Places=[]
       
     
         
@@ -268,29 +274,24 @@ class PetriEnv(gym.Env):
           for p in self.Places_obj:      
               if p.pname==i and p.waiting_time>0:  
                  in_process=True
-                 inp_rocess_Places.append(p.pname)
-                 
-                       
-
+                 in_process_Places.append(p.pname)
+                                        
       #generate the feature matrix Stacked 
       #FM=pd.concat([self.marking,self.Combined_incidence], axis=1).to_numpy()
       
       #generate the feature matrix multiplied   
-      FM=self.Combined_incidence.T.values.dot(current_marking).reshape(1,5)
+      FM=self.Combined_incidence.T.values.dot(current_marking).reshape(1,self.NTRANSITIONS)
       
-      
-
-
 
       if  not possible  :
 
           #print("firing Halted! ")
-          return (self.marking,FM,False,inp_rocess_Places) 
+          return (self.marking,FM,False,in_process_Places) 
                   
       elif in_process:  
   
-          #print(f"Upstream {in_process_place} Still in process , firing halted ")
-          return (self.marking,FM,False,inp_rocess_Places)   
+         # print("Upstream  Still in process , firing halted ")
+          return (self.marking,FM,False,in_process_Places)   
         
         #-------------if firing successful---------------
          
@@ -312,22 +313,19 @@ class PetriEnv(gym.Env):
                      pass              #change upstream properties
          
          #print(" firing successful! ")
-         return (Next_marking["Current"],FM,True,inp_rocess_Places)
+         return (Next_marking["Current"],FM,True,in_process_Places)
      
-        
-     
-         
+    
   def Reward(self,Next_state,delivery,): 
       
-      reward=0
-
-     
+      reward=0   
       if  int(self.marking["OB"])>self.goal:
           
           # Goal achieved  
           reward=+10
           firing_info="Goal achieved !! "  
           self.Terminal=True
+          print("Goal achieved !! " )
           
       elif self.delivered<int(self.marking["OB"]):
           # a piece is delivered       
@@ -336,7 +334,7 @@ class PetriEnv(gym.Env):
           
       elif self.Terminal==True :
           # dead lock
-          reward=-7
+          reward=-100
           firing_info="Dead lock"
 
       elif delivery == False :
@@ -352,6 +350,7 @@ class PetriEnv(gym.Env):
     
       self.delivered=int(self.marking["OB"])   
      # print(int(self.marking["OB"]))
+
       
       return reward ,firing_info
  
@@ -383,11 +382,11 @@ class PetriEnv(gym.Env):
       #test termination               
       transition_summary=self.possible_firing()["Firing enabled"] 
       if all([transition_summary[i]==False for i in transition_summary.index]) : 
-          #print("no fireable transition available episode Terminated ")
+         # print("no fireable transition available episode Terminated ")
           self.Terminal=True  
           
       elif self.simulation_clock> self.max_steps:
-          #print("No response episode Terminated")
+         # print("No response episode Terminated")
           self.Terminal=True 
           
              
@@ -421,7 +420,7 @@ class PetriEnv(gym.Env):
       self.episode_actions_history=[]
       self.marking=self.initial_marking
       
-      array=np.array(np.zeros((1,5)),dtype=np.int32)  
+      array=np.array(np.zeros((1,self.NTRANSITIONS)),dtype=np.int32)  
       matrix=np.array(np.zeros((6,6)),dtype=np.int32) 
           
       return    array 
@@ -430,7 +429,7 @@ class PetriEnv(gym.Env):
         
   def render(self,replay=False,continues=True):  
       
-      speed =200
+      speed =100
       position=(0,0)
       white= (255, 255, 255)
       clock = pygame.time.Clock() 
