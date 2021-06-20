@@ -14,7 +14,7 @@ from graphviz import Digraph
 from graphviz import render
 from random import sample
 
-
+from random import randrange
 
 #%% Main environement 
 class PetriEnv(gym.Env):
@@ -50,7 +50,7 @@ class PetriEnv(gym.Env):
       self.grafic_container=[]
       self.saved_render=[]
       
-      self.path = os.getcwd()+"\modelisation/4.html"
+      self.path = os.getcwd()+"\modelisation/2.html"
       self.Forwards_incidence = pd.read_html(self.path,header=0,index_col=0)[1]
       self.Backwards_incidence= pd.read_html(self.path,header=0,index_col=0)[3]
       self.Combined_incidence = pd.read_html(self.path,header=0,index_col=0)[5]
@@ -162,7 +162,11 @@ class PetriEnv(gym.Env):
       print ("Model Loaded from {}".format(self.path))
       
       
- 
+     # for i in (self.Places_obj):
+     #     i.token=randrange(10)
+    #  self.Places_obj[-4].token=10
+
+
         
   def Create_Snapshot(self,action,fired,inprocess,reward,firing,episode=0,):
 
